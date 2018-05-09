@@ -22,7 +22,7 @@ object Runner extends JsonSupport {
     
     import sys.dispatcher
     
-    sys.scheduler.schedule(Duration.Zero, FiniteDuration(3, TimeUnit.SECONDS))(doThing)
+    sys.scheduler.schedule(Duration.Zero, FiniteDuration(10, TimeUnit.SECONDS))(doThing)
     
     while(true) {
       Thread.sleep(3000L)
@@ -34,20 +34,23 @@ object Runner extends JsonSupport {
   
   def doThing()(implicit sys: ActorSystem, mat: ActorMaterializer) {
     
-    val val1 = Await.result({ Future {
+    import sys.dispatcher
+    
+    val val1 = Future {
       1 / getBidAsks("https://www.okex.com/api/v1/depth.do?symbol=ltc_btc").bids(0)(0)
-    }(sys.dispatcher) }, Duration("3 seconds"))
+    }(sys.dispatcher)
     
-    val val2 = Await.result({ Future {
+    val val2 = Future {
       getBidAsks("https://www.okex.com/api/v1/depth.do?symbol=eth_btc").asks.last(0)
-    }(sys.dispatcher) }, Duration("3 seconds"))
+    }(sys.dispatcher)
     
-    val val3 = Await.result({ Future {
+    val val3 = Future {
       getBidAsks("https://www.okex.com/api/v1/depth.do?symbol=ltc_eth").asks.last(0)
-    }(sys.dispatcher) }, Duration("3 seconds"))
+    }(sys.dispatcher)
     
-    val result = val1 * val2 * val3
-    System.err.println(s"val1: $val1 val2: $val2 val3: $val3 result: $result")
+    val vals = Await.result(Future.sequence(Seq(val1, val2, val3)), Duration("5 seconds"))
+    val result = vals.reduce(_ * _)
+    System.err.println(s"val1: ${vals(0)} val2: ${vals(1)} val3: ${vals(2)} result: $result")
     
     if(result > 1 + BUFFER) {
       System.err.println("Send trades now!")
