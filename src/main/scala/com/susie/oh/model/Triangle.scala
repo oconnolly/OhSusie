@@ -1,3 +1,3 @@
 package com.susie.oh.model
 
-case class Triangle(val first: (String, String), val second: (String, String), val third: (String, String))
+case class Triangle(val first: Leg, val second: Leg, val third: Leg)

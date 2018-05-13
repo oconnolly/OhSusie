@@ -1,3 +1,3 @@
 package com.susie.oh.model
 
-case class Price(val sold: String, val bought: String, val exchangeId: String, val price: Double)
+case class Price(val leg: Leg = null, val exchangeId: String, val price: Double)

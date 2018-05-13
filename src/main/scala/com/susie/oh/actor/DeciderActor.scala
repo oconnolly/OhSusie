@@ -4,18 +4,37 @@ import akka.actor.Actor
 import akka.actor.ActorLogging
 import com.susie.oh.model.Price
 import com.susie.oh.model.Triangle
+import com.susie.oh.model.Leg
+import scala.collection.mutable.ListBuffer
+import com.susie.oh.outbound.OutboundDataMessage
 
 class DeciderActor(val triangles: Seq[Triangle]) extends Actor with ActorLogging {
   
-  val data = new collection.mutable.HashMap[(String, String, String), (Double, Double)]()
+  val outboundActor = context.actorSelection("/user/OutboundActor")
+  
+  import collection.mutable
+  
+  val data = new mutable.HashMap[(Leg, String), (Double, Double)]()
+  
+  val lowestPriceData = new mutable.HashMap[Leg, (Double, String)]()
   
   override def receive = {
     
-    case p @ Price(sold, bought, exchangeId, price) => {
+    case p @ Price(leg @ Leg(sold, bought), exchangeId, price) => {
       
-      data += ((sold, bought, exchangeId) -> (price, Double.NaN))
+      data += ((leg, exchangeId) -> (price, Double.NaN))
       
-      doSomething(p)
+      lowestPriceData get leg match {
+        
+        case None => lowestPriceData.+=((leg, (price, exchangeId)))
+        
+        case Some((pr, ex)) if ex == exchangeId || price < pr => lowestPriceData.+=((leg, (price, exchangeId)))
+        
+        case _ => {}
+        
+      }
+      
+      doSomething2(p)
       
     }
     
@@ -23,42 +42,55 @@ class DeciderActor(val triangles: Seq[Triangle]) extends Actor with ActorLogging
     
   }
   
-  private def doSomething(price: Price) {
+  private def doSomething2(newPrice: Price) {
     
-    System.err.println(data)
-    
-    val pair = (price.sold, price.bought)
-    
-    triangles.map { tri =>
+    triangles.filter { case Triangle(first, second, third) =>
       
-      System.err.print("tri: " + tri + " pair: " + pair)
+      newPrice.leg == first || newPrice.leg == second || newPrice.leg == third
       
-      if(tri.first == pair || tri.second == pair || tri.third == pair) {
+    }.map { case t @ Triangle(first, second, third) =>
+      
+      val firstPrice = lowestPriceData.get(first).map { case (_, exch) => (exch, data((first, exch))._1) }.getOrElse((null, -1D))
+      
+      val secondPrice = lowestPriceData.get(second).map { case (_, exch) => (exch, data((second, exch))._1) }.getOrElse(null, -1D)
+      
+      val thirdPrice = lowestPriceData.get(third).map { case (_, exch) => (exch, data((third, exch))._1) }.getOrElse(null, -1D)
+      
+      if(firstPrice._2 != -1 && secondPrice._2 != -1 && thirdPrice._2 != -1) {
         
-        val first = (tri.first._1, tri.first._2, "OKEX")
+        val result = firstPrice._2 * secondPrice._2 * thirdPrice._2
         
-        val firstPrice = data.get(first).map(_._1).getOrElse(-1d)
+        outboundActor ! OutboundDataMessage(result, (first, firstPrice._1), (second, secondPrice._1), (third, thirdPrice._1))
         
-        val second = (tri.second._1, tri.second._2, "OKEX")
-        
-        val secondPrice = data.get(second).map(_._1).getOrElse(-1d)
-        
-        val third = (tri.third._1, tri.third._2, "OKEX")
-        
-        val thirdPrice = data.get(third).map(_._1).getOrElse(-1d)
-        
-        if(!(firstPrice == -1d || secondPrice == -1d || thirdPrice == -1d)) {
+        if(result < 1) {
           
-          val result = firstPrice * secondPrice * thirdPrice
+          System.err.println(">>>>>>>>>>>>>>>>>>>>>>>>>")
           
-          System.err.println("result is: " + result)
+          System.err.println(" result is: " + result)
           
-          if(result > 1 + 0.01) {
-            System.err.println("send trade!")
-          }
+          System.err.println("Triangle: " + t)
+        
+          System.err.println(s"Prices: p1: $firstPrice p2: $secondPrice p3: $thirdPrice")
           
-        } else {
-          null
+          System.err.println(" send trade!")
+          
+          System.err.println("\n-_-_-")
+          System.err.println(newPrice)
+          System.err.println("first price: " + firstPrice + " for " + first)
+          
+          data.filter(_._1._1 == first).foreach(System.err.println)
+          
+          System.err.println("second price: " + secondPrice + " for " + second)
+          
+          data.filter(_._1._1 == second).foreach(System.err.println)
+          
+          System.err.println("third price: " + thirdPrice + " for " + third)
+          
+          data.filter(_._1._1 == third).foreach(System.err.println)
+          
+          System.err.println("-_-_-\n")
+          
+          System.err.println("<<<<<<<<<<<<<<<<<<<<<<<<<")
         }
         
       }

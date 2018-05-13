@@ -13,14 +13,15 @@ import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.StatusCodes
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import com.susie.oh.main.BidAskResponseBittrex
 
-class BinanceRequestConverterFactory() extends RequestConverterFactory() {
+class BittrexRequestConverterFactory() extends RequestConverterFactory() {
   
   override def getRequest(exchangeProfile: ExchangeProfile, orderBookRequest: OrderBookRequest): HttpRequest = {
-    
-    val args = Map("symbol" -> (orderBookRequest.bought + orderBookRequest.sold))
       
-    val uriWithParams = exchangeProfile.address + "?" + args.map { case (name, value) => s"$name=$value" }.mkString("&")
+    val args = Map("market" -> (orderBookRequest.sold.toUpperCase() + "-" + orderBookRequest.bought.toUpperCase()), "type" -> "both")
+    
+    val uriWithParams = exchangeProfile.address + "/getorderbook?" + args.map { case (name, value) => s"$name=$value" }.mkString("&")
     
     HttpRequest(uri = uriWithParams)
     
@@ -32,11 +33,11 @@ class BinanceRequestConverterFactory() extends RequestConverterFactory() {
       
       case StatusCodes.OK => {
         
-        val resRaw = Await.result(Unmarshal(httpResponse.entity).to[BidAskResponseBinance], exchangeProfile.timeout)
+        val resRaw = Await.result(Unmarshal(httpResponse.entity).to[BidAskResponseBittrex], exchangeProfile.timeout)
         
-        val lowestAsk = resRaw.asks(0)(0)
+        val lowestAsk = resRaw.result.sell(0).Rate
         
-        val highestBid = resRaw.bids(0)(0)
+        val highestBid = resRaw.result.buy(0).Rate
         
         val firstPrice = Price(exchangeId = exchangeProfile.id, price = lowestAsk.toDouble * (1 + exchangeProfile.fee))
         

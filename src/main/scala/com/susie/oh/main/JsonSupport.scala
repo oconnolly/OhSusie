@@ -7,8 +7,6 @@ import spray.json.RootJsonFormat
 
 trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   
-  implicit val bidAskFormat = jsonFormat2(BidAskResponse)
-  
   import spray.json._
   
   implicit object bidAskBinanceFormat extends RootJsonFormat[BidAskResponseBinance] {
@@ -29,8 +27,40 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
     
   }
   
+  implicit object bidAskPoloniexValueFormat extends RootJsonFormat[BidAskResponsePoloniexValue] {
+    
+    override def write(obj: BidAskResponsePoloniexValue) = ???
+    
+    override def read(value: JsValue): BidAskResponsePoloniexValue = {
+      value match {
+        case JsArray(elements) => {
+          BidAskResponsePoloniexValue(elements(0).convertTo[String].toDouble, elements(1).convertTo[Double])
+        }
+        case _ => throw new Exception("Unexpected element")
+      }
+    }
+    
+  }
+  
+  implicit val bidAskFormat = jsonFormat2(BidAskResponse)
+  implicit val bidAskFormatPoloniex = jsonFormat2(BidAskResponsePoloniex)
+  
+  implicit val bidAskFormatBittrexResultObj = jsonFormat2(BidAskResponseBittrexResultObj)
+  implicit val bidAskFormatBittrexResult = jsonFormat2(BidAskResponseBittrexResult)
+  implicit val bidAskFormatBittrex = jsonFormat1(BidAskResponseBittrex)
+  
 }
 
 case class BidAskResponse(val bids: Array[Array[Double]], val asks: Array[Array[Double]])
 
 case class BidAskResponseBinance(val bids: Array[Array[String]], val asks: Array[Array[String]])
+
+case class BidAskResponsePoloniex(val asks: Array[BidAskResponsePoloniexValue], val bids: Array[BidAskResponsePoloniexValue])
+
+case class BidAskResponsePoloniexValue(val price: Double, val amount: Double)
+
+case class BidAskResponseBittrex(val result: BidAskResponseBittrexResult)
+
+case class BidAskResponseBittrexResult(val buy: Seq[BidAskResponseBittrexResultObj], val sell: Seq[BidAskResponseBittrexResultObj])
+
+case class BidAskResponseBittrexResultObj(val Quantity: Double, val Rate: Double)

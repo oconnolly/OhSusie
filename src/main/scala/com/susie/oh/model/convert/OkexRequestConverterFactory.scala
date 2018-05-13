@@ -14,6 +14,7 @@ import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
+import com.susie.oh.model.Leg
 
 class OkexRequestConverterFactory() extends RequestConverterFactory() {
   
@@ -39,9 +40,9 @@ class OkexRequestConverterFactory() extends RequestConverterFactory() {
         
         val highestBid = resRaw.bids(0)(0)
         
-        val firstPrice = Price(null, null, exchangeProfile.id, lowestAsk.toDouble)
+        val firstPrice = Price(Leg(null, null), exchangeProfile.id, lowestAsk.toDouble * (1 + exchangeProfile.fee))
         
-        val secondPrice = Price(null, null, exchangeProfile.id, 1 / highestBid.toDouble)
+        val secondPrice = Price(Leg(null, null), exchangeProfile.id, (1 / highestBid.toDouble) * (1 + exchangeProfile.fee))
         
         Future.successful((firstPrice, secondPrice))
         

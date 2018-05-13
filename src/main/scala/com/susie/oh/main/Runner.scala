@@ -2,62 +2,103 @@ package com.susie.oh.main
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.Await
-import scala.concurrent.Future
 import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
 
 import com.susie.oh.actor.DeciderActor
 import com.susie.oh.actor.PriceActor
 import com.susie.oh.actor.TradeActor
 import com.susie.oh.model.ExchangeProfile
+import com.susie.oh.model.Leg
+import com.susie.oh.model.OrderBookRequest
+import com.susie.oh.model.Triangle
+import com.susie.oh.model.convert.BinanceRequestConverterFactory
+import com.susie.oh.model.convert.OkexRequestConverterFactory
 
 import akka.actor.ActorSystem
 import akka.actor.Props
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
-import com.susie.oh.model.convert.BinanceRequestConverterFactory
-import com.susie.oh.model.OrderBookRequest
-import com.susie.oh.model.Triangle
-import com.susie.oh.model.convert.OkexRequestConverterFactory
+import scala.io.Source
+import com.susie.oh.model.convert.PoloniexRequestConverterFactory
+import akka.routing.RoundRobinPool
+import com.susie.oh.model.convert.BittrexRequestConverterFactory
+import com.typesafe.config.ConfigFactory
+import com.susie.oh.actor.OutboundActor
+
 
 object Runner2 {
   
   def main(args: Array[String]): Unit = {
     
-    implicit val sys = ActorSystem()
+    implicit val sys = ActorSystem("ActorSystem", ConfigFactory.load())
     implicit val mat = ActorMaterializer()
     
     val triangles = Seq(
-        Triangle(("BTC", "USDT"), ("USDT", "ETH"), ("ETH", "BTC")),
-        Triangle(("BTC", "ETH"), ("ETH", "USDT"), ("USDT", "BTC")))
+        Triangle(Leg("BTC", "USDT"), Leg("USDT", "ETH"), Leg("ETH", "BTC")),
+        Triangle(Leg("BTC", "ETH"), Leg("ETH", "USDT"), Leg("USDT", "BTC")),
+        Triangle(Leg("USDT", "ETH"), Leg("ETH", "LTC"), Leg("ETH", "USDT")),
+        Triangle(Leg("USDT", "BTC"), Leg("BTC", "ETH"), Leg("ETH", "USDT")),
+        Triangle(Leg("USDT", "ETH"), Leg("ETH", "BTC"), Leg("BTC", "USDT")),
+        Triangle(Leg("USDT", "BTC"), Leg("BTC", "LTC"), Leg("LTC", "USDT")),
+        Triangle(Leg("USDT", "LTC"), Leg("LTC", "BTC"), Leg("BTC", "USDT")),
+        Triangle(Leg("ETH", "BTC"), Leg("BTC", "LTC"), Leg("LTC", "ETH")),
+        Triangle(Leg("ETH", "LTC"), Leg("LTC", "BTC"), Leg("BTC", "ETH")),
+        Triangle(Leg("USDT", "BNB"), Leg("BNB", "ETH"), Leg("ETH", "USDT")),
+        Triangle(Leg("USDT", "LTC"), Leg("LTC", "BNB"), Leg("BNB", "USDT")),
+        Triangle(Leg("USDT", "BTC"), Leg("BTC", "BNB"), Leg("BNB", "USDT")),
+        Triangle(Leg("USDT", "BNB"), Leg("BNB", "BTC"), Leg("BTC", "USDT")),
+        Triangle(Leg("USDT", "BNB"), Leg("BNB", "LTC"), Leg("LTC", "USDT")),
+        Triangle(Leg("USDT", "ETH"), Leg("ETH", "BNB"), Leg("BNB", "USDT")),
+        Triangle(Leg("BTC", "BNB"), Leg("BNB", "LTC"), Leg("LTC", "ETH")),
+        Triangle(Leg("LTC", "ETH"), Leg("ETH", "BNB"), Leg("BNB", "LTC")),
+        Triangle(Leg("BTC", "LTC"), Leg("LTC", "BNB"), Leg("BNB", "BTC")),
+        Triangle(Leg("LTC", "BNB"), Leg("BNB", "ETH"), Leg("ETH", "LTC")),
+        Triangle(Leg("BTC", "ETH"), Leg("ETH", "BNB"), Leg("BNB", "BTC")),
+        Triangle(Leg("BTC", "BNB"), Leg("BNB", "ETH"), Leg("ETH", "BTC")))
     
     val deciderActor = sys.actorOf(Props(new DeciderActor(triangles)), name = "DeciderActor")
     
-    val exchangeProfile = ExchangeProfile.createNull()
+    val outboundActor = sys.actorOf(Props[OutboundActor], name = "OutboundActor")
     
-    val binanceProfile = ExchangeProfile("BINANCE", "https://www.binance.com/api/v1/depth", Duration(3, TimeUnit.SECONDS), new BinanceRequestConverterFactory())
+    val binanceProfile = ExchangeProfile("BINANCE", "https://www.binance.com/api/v1/depth", 0.0005, Duration(5, TimeUnit.SECONDS), new BinanceRequestConverterFactory())
     
-    val okexProfile = ExchangeProfile("OKEX", "https://www.okex.com/api/v1/depth.do", Duration(3, TimeUnit.SECONDS), new OkexRequestConverterFactory())
+    val okexProfile = ExchangeProfile("OKEX", "https://www.okex.com/api/v1/depth.do", 0.002, Duration(5, TimeUnit.SECONDS), new OkexRequestConverterFactory())
     
-    val priceActors = (1 to 3).map { _ =>
-      sys.actorOf(Props(new PriceActor(mat)))
-    }
+    val poloniexProfile = ExchangeProfile("POLONIEX", "https://poloniex.com/public", 0.0025, Duration(5, TimeUnit.SECONDS), new PoloniexRequestConverterFactory())
     
-    val tradeActors = (1 to 2).map { _ =>
-      sys.actorOf(Props(new TradeActor(mat)))
-    }
+    val bittrexProfile = ExchangeProfile("BITTREX", "https://bittrex.com/api/v1.1/public", 0.0025, Duration(5, TimeUnit.SECONDS), new BittrexRequestConverterFactory())
     
+    val priceActorRouter = sys.actorOf(RoundRobinPool(3).props(Props(new PriceActor(mat))).withDispatcher("akka.my-dispatcher"))
+    
+    val tradeActorRouter = sys.actorOf(RoundRobinPool(2).props(Props(new TradeActor(mat))))
+    
+    sys.scheduler.schedule(Duration.Zero, Duration(1, TimeUnit.SECONDS)) {
+      
+      priceActorRouter ! OrderBookRequest("BTC", "ETH", binanceProfile)
+      priceActorRouter ! OrderBookRequest("BTC", "ETH", okexProfile)
+      priceActorRouter ! OrderBookRequest("BTC", "ETH", bittrexProfile)
+    
+      priceActorRouter ! OrderBookRequest("USDT", "BTC", binanceProfile)
+      priceActorRouter ! OrderBookRequest("USDT", "BTC", okexProfile)
+      priceActorRouter ! OrderBookRequest("USDT", "BTC", bittrexProfile)
+    
+      priceActorRouter ! OrderBookRequest("USDT", "ETH", binanceProfile)
+      priceActorRouter ! OrderBookRequest("USDT", "ETH", okexProfile)
+      priceActorRouter ! OrderBookRequest("USDT", "ETH", bittrexProfile)
+      
+      priceActorRouter ! OrderBookRequest("BTC", "BNB", binanceProfile)
+      priceActorRouter ! OrderBookRequest("ETH", "BNB", binanceProfile)
+      priceActorRouter ! OrderBookRequest("USDT", "BNB", binanceProfile)
+      priceActorRouter ! OrderBookRequest("BNB", "LTC", binanceProfile)
+      
+    }(sys.dispatcher)
+    
+    sys.scheduler.schedule(Duration.Zero, Duration(2, TimeUnit.SECONDS)) {
+      priceActorRouter ! OrderBookRequest("BTC", "ETH", poloniexProfile)
+      priceActorRouter ! OrderBookRequest("USDT", "BTC", poloniexProfile)
+      priceActorRouter ! OrderBookRequest("USDT", "ETH", poloniexProfile)
+    }(sys.dispatcher)
     
     while(true) {
-      
-      priceActors(0) ! OrderBookRequest("BTC", "ETH", okexProfile)
-    
-      priceActors(1) ! OrderBookRequest("USDT", "BTC", okexProfile)
-    
-      priceActors(2) ! OrderBookRequest("USDT", "ETH", okexProfile)
       
       Thread.sleep(1000L)
       
@@ -69,68 +110,20 @@ object Runner2 {
   
 }
 
-object Runner extends JsonSupport {
+class DataLoader() {
   
-  val BUFFER = 0.01
-  
-  def main(args: Array[String]) {
+  def loadFromCSV(filename: String) {
     
-    implicit val sys = ActorSystem()
-    implicit val mat = ActorMaterializer()
-    
-    import sys.dispatcher
-    
-    sys.scheduler.schedule(Duration.Zero, FiniteDuration(10, TimeUnit.SECONDS))(doThing)
-    
-    while(true) {
-      Thread.sleep(3000L)
+    Source.fromFile(filename).getLines().map { line =>
+      
+      val parts = line.split(",")
+      
+      // Triangle(parts(0), parts(1), parts(2))
+      
+      null
+      
     }
     
-    // sys.terminate()
-    
-  }
-  
-  def doThing()(implicit sys: ActorSystem, mat: ActorMaterializer) {
-    
-    import sys.dispatcher
-    
-    val val1 = Future {
-      1 / getBidAsks("https://www.okex.com/api/v1/depth.do?symbol=ltc_btc").bids(0)(0)
-    }
-    
-    val val2 = Future {
-      getBidAsks("https://www.okex.com/api/v1/depth.do?symbol=eth_btc").asks.last(0)
-    }
-    
-    val val3 = Future {
-      getBidAsks("https://www.okex.com/api/v1/depth.do?symbol=ltc_eth").asks.last(0)
-    }
-    
-    val vals = Await.result(Future.sequence(Seq(val1, val2, val3)), Duration("5 seconds"))
-    val result = vals.reduce(_ * _)
-    System.err.println(s"val1: ${vals(0)} val2: ${vals(1)} val3: ${vals(2)} result: $result")
-    
-    if(result > 1 + BUFFER) {
-      System.err.println("Send trades now!")
-    }
-  }
-  
-  def getBidAsks(addr: String)(implicit sys: ActorSystem, mat: ActorMaterializer): BidAskResponse = {
-    
-    System.err.println(s"Submitting request using URI: $addr")
-    
-    val futHttpResp = Http().singleRequest(HttpRequest(uri = addr))
-    
-    val httpResp = Await.result(futHttpResp, Duration("3 seconds"))
-    
-    val bidAskResponseFut = Unmarshal(httpResp.entity).to[BidAskResponse]
-    
-    val bidAskResponse = Await.result(bidAskResponseFut, Duration("1 second"))
-    
-    System.err.println("ASKS: " + bidAskResponse.asks.map(a => a(0) + " " + a(1)).mkString(", "))
-    System.err.println("BIDS: " + bidAskResponse.bids.map(a => a(0) + " " + a(1)).mkString(", "))
-    
-    return bidAskResponse
   }
   
 }
