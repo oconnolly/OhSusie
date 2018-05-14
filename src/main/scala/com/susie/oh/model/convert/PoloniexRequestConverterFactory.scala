@@ -1,19 +1,19 @@
 package com.susie.oh.model.convert
 
 import scala.concurrent.Await
-import com.susie.oh.model.Price
-import com.susie.oh.main.JsonSupport
-import com.susie.oh.model.ExchangeProfile
-import akka.stream.ActorMaterializer
-import com.susie.oh.model.OrderBookRequest
-import com.susie.oh.main.BidAskResponseBinance
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.StatusCodes
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+
 import com.susie.oh.main.BidAskResponsePoloniex
+import com.susie.oh.model.ExchangeProfile
+import com.susie.oh.model.OrderBookRequest
+import com.susie.oh.model.Price
+
+import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.ActorMaterializer
 
 class PoloniexRequestConverterFactory() extends RequestConverterFactory() {
   

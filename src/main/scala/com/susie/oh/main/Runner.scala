@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
 
 import com.susie.oh.actor.DeciderActor
+import com.susie.oh.actor.OutboundActor
 import com.susie.oh.actor.PriceActor
 import com.susie.oh.actor.TradeActor
 import com.susie.oh.model.ExchangeProfile
@@ -12,17 +13,15 @@ import com.susie.oh.model.Leg
 import com.susie.oh.model.OrderBookRequest
 import com.susie.oh.model.Triangle
 import com.susie.oh.model.convert.BinanceRequestConverterFactory
+import com.susie.oh.model.convert.BittrexRequestConverterFactory
 import com.susie.oh.model.convert.OkexRequestConverterFactory
+import com.susie.oh.model.convert.PoloniexRequestConverterFactory
+import com.typesafe.config.ConfigFactory
 
 import akka.actor.ActorSystem
 import akka.actor.Props
-import akka.stream.ActorMaterializer
-import scala.io.Source
-import com.susie.oh.model.convert.PoloniexRequestConverterFactory
 import akka.routing.RoundRobinPool
-import com.susie.oh.model.convert.BittrexRequestConverterFactory
-import com.typesafe.config.ConfigFactory
-import com.susie.oh.actor.OutboundActor
+import akka.stream.ActorMaterializer
 
 object Runner {
   
@@ -52,9 +51,27 @@ object Runner {
         Triangle(Leg("BTC", "LTC"), Leg("LTC", "BNB"), Leg("BNB", "BTC")),
         Triangle(Leg("LTC", "BNB"), Leg("BNB", "ETH"), Leg("ETH", "LTC")),
         Triangle(Leg("BTC", "ETH"), Leg("ETH", "BNB"), Leg("BNB", "BTC")),
-        Triangle(Leg("BTC", "BNB"), Leg("BNB", "ETH"), Leg("ETH", "BTC")))
+        Triangle(Leg("BTC", "BNB"), Leg("BNB", "ETH"), Leg("ETH", "BTC")),
+        
+        Triangle(Leg("BTC", "BCC"), Leg("BCC", "ETH"), Leg("ETH", "BTC")),
+        Triangle(Leg("BTC", "BCC"), Leg("BCC", "USDT"), Leg("USDT", "BTC")),
+        Triangle(Leg("BTC", "BCC"), Leg("BCC", "BNB"), Leg("BNB", "BTC")),
+        
+        Triangle(Leg("ETH", "BCC"), Leg("BCC", "BNB"), Leg("BNB", "ETH")),
+        Triangle(Leg("USDT", "BCC"), Leg("BCC", "BNB"), Leg("BNB", "USDT")),
+        
+        Triangle(Leg("BTC", "ETH"), Leg("ETH", "BCC"), Leg("BCC", "BTC")),
+        Triangle(Leg("BTC", "ETH"), Leg("ETH", "XRP"), Leg("XRP", "BTC")),
+        
+        Triangle(Leg("BTC", "USDT"), Leg("USDT", "BCC"), Leg("BCC", "BTC")),
+        Triangle(Leg("BTC", "USDT"), Leg("USDT", "XRP"), Leg("XRP", "BTC")),
+        
+        Triangle(Leg("BTC", "XRP"), Leg("XRP", "ETH"), Leg("ETH", "BTC")),
+        Triangle(Leg("BTC", "XRP"), Leg("XRP", "USDT"), Leg("USDT", "BTC"))
+        
+    )
     
-    val priceActorRouter = sys.actorOf(RoundRobinPool(3).props(Props(new PriceActor(mat))).withDispatcher("akka.my-dispatcher"))
+    val priceActorRouter = sys.actorOf(RoundRobinPool(5).props(Props(new PriceActor(mat))).withDispatcher("akka.my-dispatcher"))
     
     val tradeActorRouter = sys.actorOf(RoundRobinPool(2).props(Props(new TradeActor(mat))))
         
@@ -72,34 +89,53 @@ object Runner {
     
     sys.scheduler.schedule(Duration.Zero, Duration(1, TimeUnit.SECONDS)) {
       
-      priceActorRouter ! OrderBookRequest("BTC", "ETH", binanceProfile)
-      priceActorRouter ! OrderBookRequest("BTC", "ETH", okexProfile)
-      priceActorRouter ! OrderBookRequest("BTC", "ETH", bittrexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BTC", "ETH"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BTC", "ETH"), okexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BTC", "ETH"), bittrexProfile)
     
-      priceActorRouter ! OrderBookRequest("USDT", "BTC", binanceProfile)
-      priceActorRouter ! OrderBookRequest("USDT", "BTC", okexProfile)
-      priceActorRouter ! OrderBookRequest("USDT", "BTC", bittrexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "BTC"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "BTC"), okexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "BTC"), bittrexProfile)
     
-      priceActorRouter ! OrderBookRequest("USDT", "ETH", binanceProfile)
-      priceActorRouter ! OrderBookRequest("USDT", "ETH", okexProfile)
-      priceActorRouter ! OrderBookRequest("USDT", "ETH", bittrexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "ETH"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "ETH"), okexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "ETH"), bittrexProfile)
       
-      priceActorRouter ! OrderBookRequest("BTC", "BNB", binanceProfile)
-      priceActorRouter ! OrderBookRequest("ETH", "BNB", binanceProfile)
-      priceActorRouter ! OrderBookRequest("USDT", "BNB", binanceProfile)
-      priceActorRouter ! OrderBookRequest("BNB", "LTC", binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BTC", "BNB"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("ETH", "BNB"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "BNB"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BNB", "LTC"), binanceProfile)
       
-      priceActorRouter ! OrderBookRequest("ETH", "LTC", binanceProfile)
-      priceActorRouter ! OrderBookRequest("BTC", "LTC", binanceProfile)
-      priceActorRouter ! OrderBookRequest("USDT", "LTC", binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("ETH", "LTC"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BTC", "LTC"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "LTC"), binanceProfile)
       
-      priceActorRouter ! OrderBookRequest("ETH", "LTC", okexProfile)
-      priceActorRouter ! OrderBookRequest("BTC", "LTC", okexProfile)
-      priceActorRouter ! OrderBookRequest("USDT", "LTC", okexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("ETH", "LTC"), okexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BTC", "LTC"), okexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "LTC"), okexProfile)
       
-      priceActorRouter ! OrderBookRequest("ETH", "LTC", bittrexProfile)
-      priceActorRouter ! OrderBookRequest("BTC", "LTC", bittrexProfile)
-      priceActorRouter ! OrderBookRequest("USDT", "LTC", bittrexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("ETH", "LTC"), bittrexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BTC", "LTC"), bittrexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "LTC"), bittrexProfile)
+      
+      priceActorRouter ! OrderBookRequest(Leg("ETH", "BCC"), bittrexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("ETH", "XRP"), bittrexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BTC", "BCC"), bittrexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BTC", "XRP"), bittrexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "BCC"), bittrexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "XRP"), bittrexProfile)
+      
+      priceActorRouter ! OrderBookRequest(Leg("ETH", "BCC"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("ETH", "XRP"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BTC", "BCC"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BTC", "XRP"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "BCC"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "XRP"), binanceProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BNB", "BCC"), binanceProfile)
+      
+      priceActorRouter ! OrderBookRequest(Leg("ETH", "XRP"), okexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("BTC", "XRP"), okexProfile)
+      priceActorRouter ! OrderBookRequest(Leg("USDT", "XRP"), okexProfile)
       
     }(sys.dispatcher)
     

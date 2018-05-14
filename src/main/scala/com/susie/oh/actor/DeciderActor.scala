@@ -1,19 +1,19 @@
 package com.susie.oh.actor
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
+import com.susie.oh.model.Leg
 import com.susie.oh.model.Price
 import com.susie.oh.model.Triangle
-import com.susie.oh.model.Leg
-import scala.collection.mutable.ListBuffer
-import com.susie.oh.outbound.OutboundDataMessage
+import com.susie.oh.outbound.message.OutboundDataMessage
+
+import akka.actor.Actor
+import akka.actor.ActorLogging
 import akka.actor.ActorRef
 
 class DeciderActor(val triangles: Seq[Triangle], val traderService: ActorRef) extends Actor with ActorLogging {
   
   val outboundActor = context.actorSelection("/user/OutboundActor")
   
-  import collection.mutable
+  import scala.collection.mutable
   
   val data = new mutable.HashMap[(Leg, String), (Double, Double)]()
   
@@ -75,15 +75,15 @@ class DeciderActor(val triangles: Seq[Triangle], val traderService: ActorRef) ex
         
         if(result < 1) {
           
-          System.err.println(">>>>>>>>>>>>>>>>>>>>>>>>>")
+          log.info(">>>>>>>>>>>>>>>>>>>>>>>>>")
           
-          System.err.println(" result is: " + result)
+          log.info(" result is: " + result)
           
-          System.err.println("Triangle: " + t)
+          log.info("Triangle: " + t)
         
-          System.err.println(s"Prices: p1: $firstPrice p2: $secondPrice p3: $thirdPrice")
+          log.info(s"Prices: p1: $firstPrice p2: $secondPrice p3: $thirdPrice")
           
-          System.err.println(" send trade!")
+          log.info(" send trade!")
           
           // TODO refactor this part!!
           traderService ! TradeRequest(
@@ -91,23 +91,23 @@ class DeciderActor(val triangles: Seq[Triangle], val traderService: ActorRef) ex
               Price(second, secondPrice._1, secondPrice._2._1, secondPrice._2._2),
               Price(third, thirdPrice._1, thirdPrice._2._1, thirdPrice._2._2))
           
-          System.err.println("\n-_-_-")
-          System.err.println(newPrice)
-          System.err.println("first price: " + firstPrice + " for " + first)
+          log.info("\n-_-_-")
+          log.info(newPrice.toString())
+          log.info("first price: " + firstPrice + " for " + first)
           
-          data.filter(_._1._1 == first).foreach(System.err.println)
+          data.filter(_._1._1 == first).foreach(v => log.info(v.toString()))
           
-          System.err.println("second price: " + secondPrice + " for " + second)
+          log.info("second price: " + secondPrice + " for " + second)
           
-          data.filter(_._1._1 == second).foreach(System.err.println)
+          data.filter(_._1._1 == second).foreach(v => log.info(v.toString()))
           
-          System.err.println("third price: " + thirdPrice + " for " + third)
+          log.info("third price: " + thirdPrice + " for " + third)
           
-          data.filter(_._1._1 == third).foreach(System.err.println)
+          data.filter(_._1._1 == third).foreach(v => log.info(v.toString()))
           
-          System.err.println("-_-_-\n")
+          log.info("-_-_-\n")
           
-          System.err.println("<<<<<<<<<<<<<<<<<<<<<<<<<")
+          log.info("<<<<<<<<<<<<<<<<<<<<<<<<<")
         }
         
       }

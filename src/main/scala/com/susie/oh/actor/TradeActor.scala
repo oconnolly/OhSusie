@@ -1,7 +1,8 @@
 package com.susie.oh.actor
 
-import akka.stream.ActorMaterializer
 import com.susie.oh.model.Price
+
+import akka.stream.ActorMaterializer
 
 class TradeActor(override val mat: ActorMaterializer) extends BaseExchangeActor(mat) {
   
@@ -19,7 +20,9 @@ class TradeActor(override val mat: ActorMaterializer) extends BaseExchangeActor(
       
       val price3VolumeOriginalUnit = lowestVolume * price1.price
       
-      System.err.println(s"!!! Execute trades with volumes: $price1 $lowestVolume; $price2 $price2VolumeOriginalUnit; $price3 $price3VolumeOriginalUnit !!!")
+      log.info(s"!!! Execute trades with volumes: $price1 $lowestVolume; $price2 $price2VolumeOriginalUnit; $price3 $price3VolumeOriginalUnit !!!")
+      
+      
       
     }
     

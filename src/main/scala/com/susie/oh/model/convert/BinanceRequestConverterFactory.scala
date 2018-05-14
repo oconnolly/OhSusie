@@ -1,20 +1,20 @@
 package com.susie.oh.model.convert
 
 import scala.concurrent.Await
-import com.susie.oh.model.Price
-import com.susie.oh.main.JsonSupport
-import com.susie.oh.model.ExchangeProfile
-import akka.stream.ActorMaterializer
-import com.susie.oh.model.OrderBookRequest
-import com.susie.oh.main.BidAskResponseBinance
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.StatusCodes
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import java.util.concurrent.atomic.AtomicInteger
+
 import com.google.common.util.concurrent.AtomicDouble
+import com.susie.oh.main.BidAskResponseBinance
+import com.susie.oh.model.ExchangeProfile
+import com.susie.oh.model.OrderBookRequest
+import com.susie.oh.model.Price
+
+import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.ActorMaterializer
 
 class BinanceRequestConverterFactory() extends RequestConverterFactory() {
   
@@ -38,10 +38,12 @@ class BinanceRequestConverterFactory() extends RequestConverterFactory() {
         
         val accumVolume = new AtomicDouble(0)
         
+        val currencyMinimumVolume = ExchangeProfile.minimumVolume(orderBookRequest.leg.bought)
+        
         val (lowestAsk, lowestAskVolume) = resRaw.asks.find { ask =>
           val volume = ask(1).toDouble
           accumVolume.addAndGet(volume)
-          volume > 1
+          volume > currencyMinimumVolume
         }.map { ask =>
           (ask(0).toDouble, accumVolume.getAndSet(0))
         }.getOrElse(throw new Exception("Not enough eligible trade volumes"))
@@ -49,7 +51,7 @@ class BinanceRequestConverterFactory() extends RequestConverterFactory() {
         val (highestBid, highestBidVolume) = resRaw.bids.find { bid =>
           val volume = bid(1).toDouble
           accumVolume.addAndGet(volume)
-          volume > 1
+          volume > currencyMinimumVolume
         }.map { bid =>
           (bid(0).toDouble, accumVolume.get())
         }.getOrElse(throw new Exception("Not enough eligible trade volumes"))
@@ -64,7 +66,7 @@ class BinanceRequestConverterFactory() extends RequestConverterFactory() {
         
       }
       
-      case _ => Future.failed(new Exception(s"Received error for request: ${httpResponse.status}"))
+      case _ => Future.failed(new Exception(s"Received error: ${httpResponse.status} for request: $orderBookRequest"))
       
     }
     

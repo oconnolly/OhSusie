@@ -7,7 +7,6 @@ import scala.concurrent.Future
 import com.google.common.util.concurrent.AtomicDouble
 import com.susie.oh.main.BidAskResponse
 import com.susie.oh.model.ExchangeProfile
-import com.susie.oh.model.Leg
 import com.susie.oh.model.OrderBookRequest
 import com.susie.oh.model.Price
 
@@ -39,10 +38,12 @@ class OkexRequestConverterFactory() extends RequestConverterFactory() {
         
         val accumVolume = new AtomicDouble(0)
         
+        val currencyMinimumVolume = ExchangeProfile.minimumVolume(orderBookRequest.leg.bought)
+        
         val (lowestAsk, lowestAskVolume) = resRaw.asks.reverse.find { ask =>
           val volume = ask(1)
           accumVolume.addAndGet(volume)
-          volume > 1
+          volume > currencyMinimumVolume
         }.map { ask =>
           (ask(0), accumVolume.getAndSet(0))
         }.getOrElse(throw new Exception("Not enough eligible trade volumes"))
@@ -50,7 +51,7 @@ class OkexRequestConverterFactory() extends RequestConverterFactory() {
         val (highestBid, highestBidVolume) = resRaw.bids.find { bid =>
           val volume = bid(1)
           accumVolume.addAndGet(volume)
-          volume > 1
+          volume > currencyMinimumVolume
         }.map { bid =>
           (bid(0), accumVolume.get())
         }.getOrElse(throw new Exception("Not enough eligible trade volumes"))
