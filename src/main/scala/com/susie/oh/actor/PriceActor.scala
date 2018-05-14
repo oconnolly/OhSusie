@@ -5,6 +5,9 @@ import com.susie.oh.model.OrderBookRequest
 import akka.stream.ActorMaterializer
 import scala.concurrent.Await
 import com.susie.oh.model.Leg
+import scala.util.Success
+import scala.util.Failure
+import org.apache.commons.lang.exception.ExceptionUtils
 
 class PriceActor(override val mat: ActorMaterializer) extends BaseExchangeActor(mat) {
   
@@ -26,15 +29,13 @@ class PriceActor(override val mat: ActorMaterializer) extends BaseExchangeActor(
     
     val httpResponse = Await.result(http.singleRequest(httpRequest), orderBookRequest.exchangeProfile.timeout)
     
-    val response = Await.result(orderBookRequest.exchangeProfile.requestConverterFactory.getResponse(orderBookRequest.exchangeProfile, httpResponse), orderBookRequest.exchangeProfile.timeout)
-    
-    val firstPrice = response._1.copy(leg = Leg(sold = orderBookRequest.sold, bought = orderBookRequest.bought))
-    
-    val secondPrice = response._2.copy(leg = Leg(sold = orderBookRequest.bought, bought = orderBookRequest.sold))
-    
-    deciderActor ! firstPrice
-    
-    deciderActor ! secondPrice
+    orderBookRequest.exchangeProfile.requestConverterFactory.getResponse(orderBookRequest, httpResponse).onComplete {
+      case Success((firstPrice, secondPrice)) => {
+        deciderActor ! firstPrice
+        deciderActor ! secondPrice
+      }
+      case Failure(e) => log.error(ExceptionUtils.getFullStackTrace(e))
+    }
     
   }
   

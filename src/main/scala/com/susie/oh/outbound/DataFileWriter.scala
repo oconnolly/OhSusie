@@ -7,7 +7,7 @@ import java.io.FileWriter
 
 class DataFileWriter(num: Int) {
   
-  private val filename = s"trades-$num.log"
+  private val filename = s"trades-$num.csv"
   
   lazy val bufferedWriter = {
     val writer = new BufferedWriter(new FileWriter(filename))

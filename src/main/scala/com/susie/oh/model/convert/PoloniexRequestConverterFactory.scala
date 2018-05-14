@@ -19,7 +19,7 @@ class PoloniexRequestConverterFactory() extends RequestConverterFactory() {
   
   override def getRequest(exchangeProfile: ExchangeProfile, orderBookRequest: OrderBookRequest): HttpRequest = {
     
-    val args = Map("command" -> "returnOrderBook", "currencyPair" -> (orderBookRequest.sold + "_" + orderBookRequest.bought), "depth" -> "1")
+    val args = Map("command" -> "returnOrderBook", "currencyPair" -> (orderBookRequest.leg.sold + "_" + orderBookRequest.leg.bought), "depth" -> "1")
     
     val uriWithParams = exchangeProfile.address + "?" + args.map { case (name, value) => s"$name=$value" }.mkString("&")
     
@@ -27,21 +27,23 @@ class PoloniexRequestConverterFactory() extends RequestConverterFactory() {
     
   }
   
-  override def getResponse(exchangeProfile: ExchangeProfile, httpResponse: HttpResponse)(implicit ec: ExecutionContext, mat: ActorMaterializer): Future[(Price, Price)] = {
+  override def getResponse(orderBookRequest: OrderBookRequest, httpResponse: HttpResponse)(implicit ec: ExecutionContext, mat: ActorMaterializer): Future[(Price, Price)] = {
     
     httpResponse.status match {
       
       case StatusCodes.OK => {
         
-        val resRaw = Await.result(Unmarshal(httpResponse.entity).to[BidAskResponsePoloniex], exchangeProfile.timeout)
+        val resRaw = Await.result(Unmarshal(httpResponse.entity).to[BidAskResponsePoloniex], orderBookRequest.exchangeProfile.timeout)
         
         val lowestAsk = resRaw.asks(0).price
+        val lowestAskVolume = resRaw.asks(0).amount
         
         val highestBid = resRaw.bids(0).price
+        val highestBidVolume = resRaw.bids(0).amount
         
-        val firstPrice = Price(exchangeId = exchangeProfile.id, price = lowestAsk.toDouble * (1 + exchangeProfile.fee))
+        val firstPrice = Price(orderBookRequest.leg, orderBookRequest.exchangeProfile.id, lowestAsk.toDouble * (1 + orderBookRequest.exchangeProfile.fee), lowestAskVolume)
         
-        val secondPrice = Price(exchangeId = exchangeProfile.id, price = (1 / highestBid.toDouble) * (1 + exchangeProfile.fee))
+        val secondPrice = Price(orderBookRequest.leg.swap(), orderBookRequest.exchangeProfile.id, (1 / highestBid.toDouble) * (1 + orderBookRequest.exchangeProfile.fee), highestBidVolume)
         
         System.err.println("GOT POLONIEX PRICE: " + firstPrice + " " + secondPrice)
         

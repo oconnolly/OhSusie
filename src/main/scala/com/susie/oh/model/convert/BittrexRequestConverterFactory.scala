@@ -14,12 +14,13 @@ import akka.http.scaladsl.model.StatusCodes
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import com.susie.oh.main.BidAskResponseBittrex
+import com.google.common.util.concurrent.AtomicDouble
 
 class BittrexRequestConverterFactory() extends RequestConverterFactory() {
   
   override def getRequest(exchangeProfile: ExchangeProfile, orderBookRequest: OrderBookRequest): HttpRequest = {
       
-    val args = Map("market" -> (orderBookRequest.sold.toUpperCase() + "-" + orderBookRequest.bought.toUpperCase()), "type" -> "both")
+    val args = Map("market" -> (orderBookRequest.leg.sold.toUpperCase() + "-" + orderBookRequest.leg.bought.toUpperCase()), "type" -> "both")
     
     val uriWithParams = exchangeProfile.address + "/getorderbook?" + args.map { case (name, value) => s"$name=$value" }.mkString("&")
     
@@ -27,21 +28,35 @@ class BittrexRequestConverterFactory() extends RequestConverterFactory() {
     
   }
   
-  override def getResponse(exchangeProfile: ExchangeProfile, httpResponse: HttpResponse)(implicit ec: ExecutionContext, mat: ActorMaterializer): Future[(Price, Price)] = {
+  override def getResponse(orderBookRequest: OrderBookRequest, httpResponse: HttpResponse)(implicit ec: ExecutionContext, mat: ActorMaterializer): Future[(Price, Price)] = {
     
     httpResponse.status match {
       
       case StatusCodes.OK => {
         
-        val resRaw = Await.result(Unmarshal(httpResponse.entity).to[BidAskResponseBittrex], exchangeProfile.timeout)
+        val resRaw = Await.result(Unmarshal(httpResponse.entity).to[BidAskResponseBittrex], orderBookRequest.exchangeProfile.timeout)
         
-        val lowestAsk = resRaw.result.sell(0).Rate
+        val accumVolume = new AtomicDouble(0)
         
-        val highestBid = resRaw.result.buy(0).Rate
+        val (lowestAsk, lowestAskVolume) = resRaw.result.sell.find { sell =>
+          val volume = sell.Quantity
+          accumVolume.addAndGet(volume)
+          volume > 1
+        }.map { sell => (sell.Rate, accumVolume.getAndSet(0)) }.getOrElse(throw new Exception("Not enough eligible trade volumes"))
         
-        val firstPrice = Price(exchangeId = exchangeProfile.id, price = lowestAsk.toDouble * (1 + exchangeProfile.fee))
+        val (highestBid, highestBidVolume) = resRaw.result.buy.find { buy =>
+          val volume = buy.Quantity
+          accumVolume.addAndGet(volume)
+          volume > 1
+        }.map { buy =>
+          (buy.Rate, accumVolume.get())
+        }.getOrElse(throw new Exception("Not enough eligible trade volumes"))
         
-        val secondPrice = Price(exchangeId = exchangeProfile.id, price = (1 / highestBid.toDouble) * (1 + exchangeProfile.fee))
+        val firstPrice = Price(orderBookRequest.leg, orderBookRequest.exchangeProfile.id, lowestAsk.toDouble * (1 + orderBookRequest.exchangeProfile.fee), lowestAskVolume)
+        
+        val secondVolumeConverted = highestBidVolume.toDouble * highestBid.toDouble
+        
+        val secondPrice = Price(orderBookRequest.leg.swap(), orderBookRequest.exchangeProfile.id, (1 / highestBid.toDouble) * (1 + orderBookRequest.exchangeProfile.fee), secondVolumeConverted)
         
         Future.successful((firstPrice, secondPrice))
         

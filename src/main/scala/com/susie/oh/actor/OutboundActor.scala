@@ -15,13 +15,14 @@ class OutboundActor extends Actor with ActorLogging {
   
   val fileCounter = new AtomicInteger(1)
   
+  // TODO refactor how we're doing this
   var fileWriter = new DataFileWriter(fileCounter.getAndIncrement())
   
   val scheduledTasks = new ArrayBuffer[Cancellable]()
   
   override def preStart() {
     import context.dispatcher
-    scheduledTasks.+=(context.system.scheduler.schedule(Duration.Zero, Duration(10, TimeUnit.MINUTES), self, ClearFileMessage))
+    scheduledTasks.+=(context.system.scheduler.schedule(Duration(10, TimeUnit.MINUTES), Duration(10, TimeUnit.MINUTES), self, ClearFileMessage))
   }
   
   override def postStop() {

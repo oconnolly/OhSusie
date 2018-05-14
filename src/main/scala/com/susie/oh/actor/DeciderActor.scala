@@ -7,8 +7,9 @@ import com.susie.oh.model.Triangle
 import com.susie.oh.model.Leg
 import scala.collection.mutable.ListBuffer
 import com.susie.oh.outbound.OutboundDataMessage
+import akka.actor.ActorRef
 
-class DeciderActor(val triangles: Seq[Triangle]) extends Actor with ActorLogging {
+class DeciderActor(val triangles: Seq[Triangle], val traderService: ActorRef) extends Actor with ActorLogging {
   
   val outboundActor = context.actorSelection("/user/OutboundActor")
   
@@ -20,21 +21,31 @@ class DeciderActor(val triangles: Seq[Triangle]) extends Actor with ActorLogging
   
   override def receive = {
     
-    case p @ Price(leg @ Leg(sold, bought), exchangeId, price) => {
+    case p @ Price(leg @ Leg(sold, bought), exchangeId, price, volume) => {
       
-      data += ((leg, exchangeId) -> (price, Double.NaN))
+      data += ((leg, exchangeId) -> (price, volume))
       
       lowestPriceData get leg match {
         
-        case None => lowestPriceData.+=((leg, (price, exchangeId)))
+        case None => {
+          
+          lowestPriceData.+=((leg, (price, exchangeId)))
+          
+          doSomething2(p)
+          
+        }
         
-        case Some((pr, ex)) if ex == exchangeId || price < pr => lowestPriceData.+=((leg, (price, exchangeId)))
+        case Some((pr, ex)) if ex == exchangeId || price < pr => {
+          
+          lowestPriceData.+=((leg, (price, exchangeId)))
+          
+          doSomething2(p)
+          
+        }
         
         case _ => {}
         
       }
-      
-      doSomething2(p)
       
     }
     
@@ -50,15 +61,15 @@ class DeciderActor(val triangles: Seq[Triangle]) extends Actor with ActorLogging
       
     }.map { case t @ Triangle(first, second, third) =>
       
-      val firstPrice = lowestPriceData.get(first).map { case (_, exch) => (exch, data((first, exch))._1) }.getOrElse((null, -1D))
+      val firstPrice = lowestPriceData.get(first).map { case (_, exch) => (exch, data((first, exch))) }.getOrElse((null, (-1D, -1D)))
       
-      val secondPrice = lowestPriceData.get(second).map { case (_, exch) => (exch, data((second, exch))._1) }.getOrElse(null, -1D)
+      val secondPrice = lowestPriceData.get(second).map { case (_, exch) => (exch, data((second, exch))) }.getOrElse((null, (-1D, -1D)))
       
-      val thirdPrice = lowestPriceData.get(third).map { case (_, exch) => (exch, data((third, exch))._1) }.getOrElse(null, -1D)
+      val thirdPrice = lowestPriceData.get(third).map { case (_, exch) => (exch, data((third, exch))) }.getOrElse((null, (-1D, -1D)))
       
-      if(firstPrice._2 != -1 && secondPrice._2 != -1 && thirdPrice._2 != -1) {
+      if(firstPrice._2._1 != -1 && secondPrice._2._1 != -1 && thirdPrice._2._1 != -1) {
         
-        val result = firstPrice._2 * secondPrice._2 * thirdPrice._2
+        val result = firstPrice._2._1 * secondPrice._2._1 * thirdPrice._2._1
         
         outboundActor ! OutboundDataMessage(result, (first, firstPrice._1), (second, secondPrice._1), (third, thirdPrice._1))
         
@@ -73,6 +84,12 @@ class DeciderActor(val triangles: Seq[Triangle]) extends Actor with ActorLogging
           System.err.println(s"Prices: p1: $firstPrice p2: $secondPrice p3: $thirdPrice")
           
           System.err.println(" send trade!")
+          
+          // TODO refactor this part!!
+          traderService ! TradeRequest(
+              Price(first, firstPrice._1, firstPrice._2._1, firstPrice._2._2),
+              Price(second, secondPrice._1, secondPrice._2._1, secondPrice._2._2),
+              Price(third, thirdPrice._1, thirdPrice._2._1, thirdPrice._2._2))
           
           System.err.println("\n-_-_-")
           System.err.println(newPrice)
