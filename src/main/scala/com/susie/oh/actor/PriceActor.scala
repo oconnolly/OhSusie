@@ -4,15 +4,16 @@ import scala.concurrent.Await
 import scala.util.Failure
 import scala.util.Success
 
-import org.apache.commons.lang.exception.ExceptionUtils
-
 import com.susie.oh.model.OrderBookRequest
+import com.susie.oh.outbound.message.OutboundExchangeLatencyMessage
 
 import akka.stream.ActorMaterializer
 
 class PriceActor(override val mat: ActorMaterializer) extends BaseExchangeActor(mat) {
   
   val deciderActor = context.actorSelection("/user/DeciderActor")
+  
+  val outboundActor = context.actorSelection("/user/OutboundActor")
   
   override def receive = {
     
@@ -36,9 +37,9 @@ class PriceActor(override val mat: ActorMaterializer) extends BaseExchangeActor(
       case Success((firstPrice, secondPrice)) => {
         deciderActor ! firstPrice
         deciderActor ! secondPrice
-        log.info(s"Finished API request for $orderBookRequest in ${System.currentTimeMillis() - t0} milliseconds")
+        outboundActor ! OutboundExchangeLatencyMessage(orderBookRequest, System.currentTimeMillis() - t0)
       }
-      case Failure(e) => log.error(ExceptionUtils.getFullStackTrace(e))
+      case Failure(e) => log.error(e.getMessage())
     }
     
   }

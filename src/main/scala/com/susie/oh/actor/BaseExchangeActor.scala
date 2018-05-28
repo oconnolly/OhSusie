@@ -14,7 +14,7 @@ abstract class BaseExchangeActor(val mat: ActorMaterializer) extends Actor with 
   
   override def preRestart(reason: Throwable, message: Option[Any]) {
     message.foreach { msg =>
-      System.err.println("Failed on message: " + msg)
+      log.error(s"Failed on message: $msg")
     }
   }
   

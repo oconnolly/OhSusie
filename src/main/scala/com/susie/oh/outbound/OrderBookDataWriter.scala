@@ -3,7 +3,7 @@ package com.susie.oh.outbound
 import com.susie.oh.outbound.message.OutboundDataMessage
 import com.susie.oh.outbound.message.OutboundMessage
 
-class OrderBookDataWriter(override val fileType: String) extends DataFileWriter(fileType) {
+class OrderBookDataWriter() extends DataFileWriter("orderbook") {
   
   override protected def doWrite(data: OutboundMessage) {
     

@@ -22,6 +22,7 @@
 		<sonar.scoverage.reportPath>${project.build.directory}/scoverage.xml</sonar.scoverage.reportPath>
 		<scoverage.plugin.version>1.1.1</scoverage.plugin.version>
 		<akka.http.version>10.0.13</akka.http.version>
+		<akka.version>2.4.20</akka.version>
 	</properties>
 
 	<dependencies>
@@ -39,19 +40,6 @@
 		</dependency>
 		
 		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<version>1.7.25</version>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<version>1.7.25</version>
-			<scope>test</scope>
-		</dependency>
-		
-		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 			<version>23.6-jre</version>
@@ -64,15 +52,21 @@
 		</dependency>
 		
 		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-slf4j${scala.suffix}</artifactId>
+			<version>${akka.version}</version>
+		</dependency>
+		
+		<dependency>
 		    <groupId>com.typesafe.akka</groupId>
 		    <artifactId>akka-http-spray-json${scala.suffix}</artifactId>
 		    <version>${akka.http.version}</version>
 		</dependency>
 		
 		<dependency>
-		    <groupId>org.apache.spark</groupId>
-		    <artifactId>spark-sql${scala.suffix}</artifactId>
-		    <version>${spark.version}</version>
+		  <groupId>ch.qos.logback</groupId>
+		  <artifactId>logback-classic</artifactId>
+		  <version>1.2.3</version>
 		</dependency>
 		
 		<!-- Test -->
