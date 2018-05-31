@@ -7,6 +7,7 @@ import scala.util.Success
 import com.susie.oh.model.OrderBookRequest
 import com.susie.oh.outbound.message.OutboundExchangeLatencyMessage
 
+import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 
 class PriceActor(override val mat: ActorMaterializer) extends BaseExchangeActor(mat) {
@@ -14,6 +15,12 @@ class PriceActor(override val mat: ActorMaterializer) extends BaseExchangeActor(
   val deciderActor = context.actorSelection("/user/DeciderActor")
   
   val outboundActor = context.actorSelection("/user/OutboundActor")
+  
+  override def preRestart(reason: Throwable, message: Option[Any]) {
+    message.foreach { msg =>
+      log.error(s"Failed on message: $msg")
+    }
+  }
   
   override def receive = {
     
@@ -27,13 +34,13 @@ class PriceActor(override val mat: ActorMaterializer) extends BaseExchangeActor(
   
   def getPrices(orderBookRequest: OrderBookRequest) = {
     
-    val httpRequest = orderBookRequest.exchangeProfile.requestConverterFactory.getRequest(orderBookRequest.exchangeProfile, orderBookRequest)
+    val httpRequest = orderBookRequest.requestFactory.getRequest(orderBookRequest)
     
-    val httpResponse = Await.result(http.singleRequest(httpRequest), orderBookRequest.exchangeProfile.timeout)
+    val httpResponse = Await.result(http.singleRequest(httpRequest), orderBookRequest.requestFactory.exchangeProfile.timeout)
     
     val t0 = System.currentTimeMillis()
     
-    orderBookRequest.exchangeProfile.requestConverterFactory.getResponse(orderBookRequest, httpResponse).onComplete {
+    orderBookRequest.requestFactory.getResponse(orderBookRequest, httpResponse).onComplete {
       case Success((firstPrice, secondPrice)) => {
         deciderActor ! firstPrice
         deciderActor ! secondPrice

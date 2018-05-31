@@ -8,7 +8,7 @@ class TradeActor(override val mat: ActorMaterializer) extends BaseExchangeActor(
   
   override def receive = {
     
-    case TradeRequest(price1, price2, price3) => {
+    case TradeRequest(ratio, price1, price2, price3) => {
       
       val price2VolumeConverted = price2.price * price2.volume
       
@@ -20,9 +20,7 @@ class TradeActor(override val mat: ActorMaterializer) extends BaseExchangeActor(
       
       val price3VolumeOriginalUnit = lowestVolume * price1.price
       
-      log.info(s"!!! Execute trades with volumes: $price1 $lowestVolume; $price2 $price2VolumeOriginalUnit; $price3 $price3VolumeOriginalUnit !!!")
-      
-      
+      log.info(s"!!! Ratio: $ratio Execute trades with volumes: $price1 $lowestVolume; $price2 $price2VolumeOriginalUnit; $price3 $price3VolumeOriginalUnit !!!")
       
     }
     
@@ -30,4 +28,4 @@ class TradeActor(override val mat: ActorMaterializer) extends BaseExchangeActor(
   
 }
 
-case class TradeRequest(val price1: Price, val price2: Price, val price3: Price)
+case class TradeRequest(val ratio: Double, val price1: Price, val price2: Price, val price3: Price)

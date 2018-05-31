@@ -49,6 +49,8 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val bidAskFormatBittrexResult = jsonFormat2(BidAskResponseBittrexResult)
   implicit val bidAskFormatBittrex = jsonFormat1(BidAskResponseBittrex)
   
+  implicit val tradeResponseFormatBinance = jsonFormat11(BinanceTradeResponse)
+  
 }
 
 case class BidAskResponse(val bids: Array[Array[Double]], val asks: Array[Array[Double]])
@@ -64,3 +66,7 @@ case class BidAskResponseBittrex(val result: BidAskResponseBittrexResult)
 case class BidAskResponseBittrexResult(val buy: Seq[BidAskResponseBittrexResultObj], val sell: Seq[BidAskResponseBittrexResultObj])
 
 case class BidAskResponseBittrexResultObj(val Quantity: Double, val Rate: Double)
+
+case class BinanceTradeResponse(val symbol: String, val orderId: Long,
+      val clientOrderId: String, val transactTime: Long, val price: String, val origQty: String,
+          val executedQty: String, val status: String, val timeInForce: String, val `type`: String, val side: String)

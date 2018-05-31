@@ -73,41 +73,14 @@ class DeciderActor(val triangles: Seq[Triangle], val traderService: ActorRef) ex
         
         outboundActor ! OutboundDataMessage(result, (first, firstPrice._1), (second, secondPrice._1), (third, thirdPrice._1))
         
-        if(result < 1) {
-          
-          log.info(">>>>>>>>>>>>>>>>>>>>>>>>>")
-          
-          log.info(" result is: " + result)
-          
-          log.info("Triangle: " + t)
-        
-          log.info(s"Prices: p1: $firstPrice p2: $secondPrice p3: $thirdPrice")
-          
-          log.info(" send trade!")
+        if(result <= 0.995) {
           
           // TODO refactor this part!!
           traderService ! TradeRequest(
+              result,
               Price(first, firstPrice._1, firstPrice._2._1, firstPrice._2._2),
               Price(second, secondPrice._1, secondPrice._2._1, secondPrice._2._2),
               Price(third, thirdPrice._1, thirdPrice._2._1, thirdPrice._2._2))
-          
-          log.info("\n-_-_-")
-          log.info(newPrice.toString())
-          log.info("first price: " + firstPrice + " for " + first)
-          
-          data.filter(_._1._1 == first).foreach(v => log.info(v.toString()))
-          
-          log.info("second price: " + secondPrice + " for " + second)
-          
-          data.filter(_._1._1 == second).foreach(v => log.info(v.toString()))
-          
-          log.info("third price: " + thirdPrice + " for " + third)
-          
-          data.filter(_._1._1 == third).foreach(v => log.info(v.toString()))
-          
-          log.info("-_-_-\n")
-          
-          log.info("<<<<<<<<<<<<<<<<<<<<<<<<<")
         }
         
       }

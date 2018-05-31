@@ -20,20 +20,14 @@ object Susie {
   
   implicit val sys = ActorSystem("ActorSystem", config)
   implicit val mat = ActorMaterializer()
-    
-  val exchangeProfiles = ExchangeProfile.load()
-  val binanceProfile = exchangeProfiles("BINANCE")
-  val okexProfile = exchangeProfiles("OKEX")
-  val bittrexProfile = exchangeProfiles("BITTREX")
-  val poloniexProfile = exchangeProfiles("POLONIEX")
   
   val numberOfPriceActors = config.getInt("susie.numberOfPriceActors")
   
   val numberOfTradeActors = config.getInt("susie.numberOfTradeActors")
   
   val priceActorRouter = sys.actorOf(RoundRobinPool(numberOfPriceActors).props(Props(new PriceActor(mat))), "PriceActor")
-    
-  val tradeActorRouter = sys.actorOf(RoundRobinPool(2).props(Props(new TradeActor(mat))), "TradeActor")
+  
+  val tradeActorRouter = sys.actorOf(RoundRobinPool(numberOfTradeActors).props(Props(new TradeActor(mat))), "TradeActor")
         
   val deciderActor = sys.actorOf(Props(new DeciderActor(susieSettings.triangles, tradeActorRouter)), "DeciderActor")
     

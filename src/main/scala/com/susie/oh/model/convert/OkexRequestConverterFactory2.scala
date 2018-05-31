@@ -16,7 +16,7 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 
-class OkexRequestConverterFactory(override val exchangeProfile: ExchangeProfile) extends RequestConverterFactory(exchangeProfile) {
+class OkexRequestConverterFactory2(override val exchangeProfile: ExchangeProfile) extends RequestConverterFactory(exchangeProfile) {
   
   override def getRequest(orderBookRequest: OrderBookRequest): HttpRequest = {
     
@@ -40,27 +40,17 @@ class OkexRequestConverterFactory(override val exchangeProfile: ExchangeProfile)
         
         val currencyMinimumVolume = ExchangeProfile.minimumVolume(orderBookRequest.leg.bought)
         
-        val (lowestAsk, lowestAskVolume) = resRaw.asks.reverse.find { ask =>
-          val volume = ask(1)
-          accumVolume.addAndGet(volume)
-          volume > currencyMinimumVolume
-        }.map { ask =>
-          (ask(0), accumVolume.getAndSet(0))
-        }.getOrElse(throw new Exception("Not enough eligible trade volumes"))
+        val asksReversed = resRaw.asks.reverse
         
-        val (highestBid, highestBidVolume) = resRaw.bids.find { bid =>
-          val volume = bid(1)
-          accumVolume.addAndGet(volume)
-          volume > currencyMinimumVolume
-        }.map { bid =>
-          (bid(0), accumVolume.get())
-        }.getOrElse(throw new Exception("Not enough eligible trade volumes"))
+        val (lowestAsk, lowestAskVolume) = (asksReversed(0)(0), asksReversed(0)(1))
         
-        val firstPrice = Price(orderBookRequest.leg, orderBookRequest.requestFactory.exchangeProfile.id, lowestAsk.toDouble * (1 + orderBookRequest.requestFactory.exchangeProfile.marketFee), lowestAskVolume)
+        val (highestBid, highestBidVolume) = (resRaw.bids(0)(0), resRaw.bids(0)(1))
         
-        val secondVolumeConverted = highestBidVolume.toDouble * highestBid.toDouble
+        val firstPrice = Price(orderBookRequest.leg, orderBookRequest.requestFactory.exchangeProfile.id, highestBid.toDouble * (1 + orderBookRequest.requestFactory.exchangeProfile.limitFee), highestBidVolume)
         
-        val secondPrice = Price(orderBookRequest.leg.swap(), orderBookRequest.requestFactory.exchangeProfile.id, (1 / highestBid.toDouble) * (1 + orderBookRequest.requestFactory.exchangeProfile.marketFee), secondVolumeConverted, true)
+        val secondVolumeConverted = lowestAskVolume.toDouble * lowestAsk.toDouble
+        
+        val secondPrice = Price(orderBookRequest.leg.swap(), orderBookRequest.requestFactory.exchangeProfile.id, (1 / lowestAsk.toDouble) * (1 + orderBookRequest.requestFactory.exchangeProfile.limitFee), secondVolumeConverted, true)
         
         Future.successful((firstPrice, secondPrice))
         

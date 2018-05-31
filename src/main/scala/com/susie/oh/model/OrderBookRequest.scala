@@ -1,3 +1,5 @@
 package com.susie.oh.model
 
-case class OrderBookRequest(val leg: Leg, val exchangeProfile: ExchangeProfile)
+import com.susie.oh.model.convert.RequestConverterFactory
+
+case class OrderBookRequest(val leg: Leg, val requestFactory: RequestConverterFactory)

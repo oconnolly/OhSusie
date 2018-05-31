@@ -12,10 +12,12 @@ import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.HttpResponse
 import akka.stream.ActorMaterializer
 
-abstract class RequestConverterFactory() extends JsonSupport {
+abstract class RequestConverterFactory(val exchangeProfile: ExchangeProfile) extends JsonSupport {
   
-  def getRequest(exchangeProfile: ExchangeProfile, orderBookRequest: OrderBookRequest): HttpRequest
+  def getRequest(orderBookRequest: OrderBookRequest): HttpRequest
   
   def getResponse(request: OrderBookRequest, httpResponse: HttpResponse)(implicit ec: ExecutionContext, mat: ActorMaterializer): Future[(Price, Price)]
+  
+  def getTradeRequest(price: Price) = {}
   
 }

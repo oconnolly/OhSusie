@@ -16,9 +16,9 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 
-class BinanceRequestConverterFactory() extends RequestConverterFactory() {
+class BinanceRequestConverterFactory(override val exchangeProfile: ExchangeProfile) extends RequestConverterFactory(exchangeProfile) {
   
-  override def getRequest(exchangeProfile: ExchangeProfile, orderBookRequest: OrderBookRequest): HttpRequest = {
+  override def getRequest(orderBookRequest: OrderBookRequest): HttpRequest = {
     
     val args = Map("symbol" -> (orderBookRequest.leg.bought + orderBookRequest.leg.sold))
       
@@ -34,7 +34,7 @@ class BinanceRequestConverterFactory() extends RequestConverterFactory() {
       
       case StatusCodes.OK => {
         
-        val resRaw = Await.result(Unmarshal(httpResponse.entity).to[BidAskResponseBinance], orderBookRequest.exchangeProfile.timeout)
+        val resRaw = Await.result(Unmarshal(httpResponse.entity).to[BidAskResponseBinance], orderBookRequest.requestFactory.exchangeProfile.timeout)
         
         val accumVolume = new AtomicDouble(0)
         
@@ -56,11 +56,11 @@ class BinanceRequestConverterFactory() extends RequestConverterFactory() {
           (bid(0).toDouble, accumVolume.get())
         }.getOrElse(throw new Exception("Not enough eligible trade volumes"))
         
-        val firstPrice = Price(orderBookRequest.leg, orderBookRequest.exchangeProfile.id, lowestAsk * (1 + orderBookRequest.exchangeProfile.fee), lowestAskVolume)
+        val firstPrice = Price(orderBookRequest.leg, orderBookRequest.requestFactory.exchangeProfile.id, lowestAsk * (1 + orderBookRequest.requestFactory.exchangeProfile.marketFee), lowestAskVolume)
         
         val secondVolumeConverted = highestBidVolume * highestBid
         
-        val secondPrice = Price(orderBookRequest.leg.swap(), orderBookRequest.exchangeProfile.id, (1 / highestBid) * (1 + orderBookRequest.exchangeProfile.fee), secondVolumeConverted)
+        val secondPrice = Price(orderBookRequest.leg.swap(), orderBookRequest.requestFactory.exchangeProfile.id, (1 / highestBid) * (1 + orderBookRequest.requestFactory.exchangeProfile.marketFee), secondVolumeConverted, true)
         
         Future.successful((firstPrice, secondPrice))
         

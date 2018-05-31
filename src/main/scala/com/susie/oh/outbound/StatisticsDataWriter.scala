@@ -12,7 +12,7 @@ class StatisticsDataWriter() extends DataFileWriter("stats") {
     val trade = message.request.leg.sold + "/" + message.request.leg.bought
     bufferedWriter.write(trade)
     bufferedWriter.write(',')
-    bufferedWriter.write(message.request.exchangeProfile.id)
+    bufferedWriter.write(message.request.requestFactory.exchangeProfile.id)
     bufferedWriter.write(',')
     bufferedWriter.write(message.duration.toString())
     bufferedWriter.write('\n')

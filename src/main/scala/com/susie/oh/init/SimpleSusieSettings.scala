@@ -9,8 +9,9 @@ import com.susie.oh.model.ExchangeProfile
 import com.susie.oh.model.Leg
 import com.susie.oh.model.OrderBookRequest
 import com.susie.oh.model.Triangle
+import com.susie.oh.model.convert.RequestConverterFactory
 
-class SimpleSusieSettings(val tradesFilename: String, val trianglesFilename: String, val exchanges: Map[String, ExchangeProfile]) extends SusieSettings {
+class SimpleSusieSettings(val tradesFilename: String, val trianglesFilename: String, val exchanges: Map[String, RequestConverterFactory]) extends SusieSettings {
   
   private val comma = ","
   
@@ -22,8 +23,11 @@ class SimpleSusieSettings(val tradesFilename: String, val trianglesFilename: Str
       val row = line.split(comma)
       val exchange = exchanges(row(2))
       val pollFrequency = FiniteDuration(row(3).toLong, TimeUnit.MILLISECONDS)
-      (OrderBookRequest(Leg(row(0), row(1)), exchange), pollFrequency)
-    }.toSeq
+      val enabled = row(4) == "Y"
+      if(enabled) (OrderBookRequest(Leg(row(0), row(1)), exchange), pollFrequency) else null
+    }
+    .toSeq
+    .filter(_ != null)
   }
   
   val triangles: Seq[Triangle] = Triangle.load()
