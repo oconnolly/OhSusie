@@ -2,16 +2,13 @@ package com.susie.oh.init
 
 import java.util.concurrent.TimeUnit
 
+import com.susie.oh.model.convert.RequestConverterFactory
+import com.susie.oh.model.{Leg, OrderBookRequest}
+
 import scala.concurrent.duration.FiniteDuration
 import scala.io.Source
 
-import com.susie.oh.model.ExchangeProfile
-import com.susie.oh.model.Leg
-import com.susie.oh.model.OrderBookRequest
-import com.susie.oh.model.Triangle
-import com.susie.oh.model.convert.RequestConverterFactory
-
-class SimpleSusieSettings(val tradesFilename: String, val trianglesFilename: String, val exchanges: Map[String, RequestConverterFactory]) extends SusieSettings {
+class SimpleSusieSettings(val tradesFilename: String, val exchanges: Map[String, RequestConverterFactory]) extends SusieSettings {
   
   private val comma = ","
   
@@ -29,8 +26,6 @@ class SimpleSusieSettings(val tradesFilename: String, val trianglesFilename: Str
     .toSeq
     .filter(_ != null)
   }
-  
-  val triangles: Seq[Triangle] = Triangle.load()
 
   val paths = PathsGenerator.run().toSeq
   

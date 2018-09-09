@@ -1,13 +1,8 @@
 package com.susie.oh.actor
 
-import com.susie.oh.model.Leg
-import com.susie.oh.model.Price
-import com.susie.oh.model.Triangle
+import akka.actor.{Actor, ActorLogging, ActorRef}
+import com.susie.oh.model.{Leg, Price, PricePair}
 import com.susie.oh.outbound.message.OutboundDataMessage
-
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
 
 class DeciderActor(val paths: Seq[List[Leg]], val traderService: ActorRef) extends Actor with ActorLogging {
   
@@ -20,45 +15,52 @@ class DeciderActor(val paths: Seq[List[Leg]], val traderService: ActorRef) exten
   val lowestPriceData = new mutable.HashMap[Leg, (Double, String)]()
   
   override def receive = {
-    
-    case p @ Price(leg @ Leg(sold, bought), exchangeId, price, volume, _, timestamp) => {
-      
-      data += ((leg, exchangeId) -> (price, volume, timestamp))
-      
-      lowestPriceData get leg match {
-        
-        case None => {
-          
-          lowestPriceData.+=((leg, (price, exchangeId)))
-          
-          doSomething2(p)
-          
-        }
 
-        // TODO revisit this
-        case Some((pr, ex)) if ex == exchangeId || price < pr => {
+    case PricePair(p1, p2) => {
 
-          lowestPriceData.+=((leg, (price, exchangeId)))
-          
-          doSomething2(p)
-          
-        }
-        
-        case _ => {}
-        
-      }
-      
+      val anyRelevantUpdates = Seq(p1, p2).map(savePrice).reduce(_ && _)
+
+      if(anyRelevantUpdates) calculateTradePaths(p1, p2)
+
     }
     
     case anythingElse => log.warning(s"Unrecognized message: $anythingElse")
     
   }
+
+  private def savePrice(p: Price): Boolean = {
+
+    data += ((p.leg, p.exchangeId) -> (p.price, p.volume, p.timestamp))
+
+    lowestPriceData get p.leg match {
+
+      case None => {
+
+        lowestPriceData.+=((p.leg, (p.price, p.exchangeId)))
+
+        true
+
+      }
+
+      // TODO revisit this
+      case Some((pr, ex)) if ex == p.exchangeId || p.price < pr => {
+
+        lowestPriceData.+=((p.leg, (p.price, p.exchangeId)))
+
+        true
+
+      }
+
+      case _ => false
+
+    }
+  }
   
-  private def doSomething2(newPrice: Price) {
+  private def calculateTradePaths(p1: Price, p2: Price) {
     
     paths.filter { case list =>
 
-      list.contains(newPrice.leg)
+      list.filter(leg => leg == p1.leg || leg == p2.leg).nonEmpty
 
     }.foreach { case list =>
 
@@ -68,20 +70,17 @@ class DeciderActor(val paths: Seq[List[Leg]], val traderService: ActorRef) exten
 
       }
 
-      val allValidPrices = priceData.map(_._2._1 != -1).fold(true)(_ && _)
+      val allValidPrices = priceData.map(_._2._1 != -1).reduce(_ && _)
 
       if(allValidPrices) {
 
         val result = priceData.map(_._2._1).reduce(_ * _)
 
-        // TODO fix this!!
-        // outboundActor ! OutboundDataMessage(result, (first, firstPrice._1), (second, secondPrice._1), (third, thirdPrice._1))
+        val tradeList = priceData.zip(list).map { case ((exch, _), leg) => (leg, exch) }
 
-        val threshold = 0.995 // - (0.0025 * list.size)
+        outboundActor ! OutboundDataMessage(result, tradeList)
 
-        // System.err.println("result is: " + result)
-
-        if(result <= threshold) {
+        if(result <= 0.995) {
 
           val prices = priceData.zipWithIndex.map { case (data, i) =>
             Price(list(i), data._1, data._2._1, data._2._2, timestamp = data._2._3)
@@ -90,9 +89,16 @@ class DeciderActor(val paths: Seq[List[Leg]], val traderService: ActorRef) exten
           val minTimestamp = prices.map(_.timestamp).min
           val maxTimestamp = prices.map(_.timestamp).max
 
-          // if(maxTimestamp - minTimestamp < 200L) {
+          if(maxTimestamp - minTimestamp < 250L) {
+
             traderService ! TradeRequest(result, prices)
-          // }
+
+            prices.foreach { p =>
+              data.remove((p.leg, p.exchangeId))
+              lowestPriceData.remove(p.leg)
+            }
+
+          }
         }
 
       }

@@ -1,14 +1,11 @@
 package com.susie.oh.actor
 
-import scala.concurrent.Await
-import scala.util.Failure
-import scala.util.Success
-
-import com.susie.oh.model.OrderBookRequest
+import akka.stream.ActorMaterializer
+import com.susie.oh.model.{OrderBookRequest, PricePair}
 import com.susie.oh.outbound.message.OutboundExchangeLatencyMessage
 
-import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
+import scala.concurrent.Await
+import scala.util.{Failure, Success}
 
 class PriceActor(override val mat: ActorMaterializer) extends BaseExchangeActor(mat) {
   
@@ -43,8 +40,7 @@ class PriceActor(override val mat: ActorMaterializer) extends BaseExchangeActor(
     orderBookRequest.requestFactory.getResponse(orderBookRequest, httpResponse).onComplete {
       case Success((firstPrice, secondPrice)) => {
         val now = System.currentTimeMillis()
-        deciderActor ! firstPrice.copy(timestamp = now)
-        deciderActor ! secondPrice.copy(timestamp = now)
+        deciderActor ! PricePair(firstPrice.copy(timestamp = now), secondPrice.copy(timestamp = now))
         outboundActor ! OutboundExchangeLatencyMessage(orderBookRequest, System.currentTimeMillis() - t0)
       }
       case Failure(e) => log.error(e.getMessage())

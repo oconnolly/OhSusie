@@ -36,13 +36,13 @@ class KuCoinRequestConverterFactory2(override val exchangeProfile: ExchangeProfi
         val highestBid = resRaw.data.BUY(0)(0)
         val highestBidVolume = resRaw.data.BUY(0)(2)
 
-        val firstPrice = Price(request.leg, request.requestFactory.exchangeProfile.id,
+        val buyPrice = Price(request.leg, request.requestFactory.exchangeProfile.id,
           lowestAsk * (1 + request.requestFactory.exchangeProfile.limitFee), lowestAskVolume)
 
-        val secondPrice = Price(request.leg.swap(), request.requestFactory.exchangeProfile.id,
+        val sellPrice = Price(request.leg.swap(), request.requestFactory.exchangeProfile.id,
           (1 / highestBid) * (1 + request.requestFactory.exchangeProfile.limitFee), highestBidVolume, true)
 
-        Future.successful((firstPrice, secondPrice))
+        Future.successful((buyPrice, sellPrice))
 
       }
 

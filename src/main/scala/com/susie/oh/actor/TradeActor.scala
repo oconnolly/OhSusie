@@ -24,6 +24,8 @@ class TradeActor(override val mat: ActorMaterializer) extends BaseExchangeActor(
       val maxPriceAge = System.currentTimeMillis() - prices.map(_.timestamp).min
 
       log.info("!!! Ratio is: " + ratio + ". # legs: " + prices.size + ". Staleness (ms): " + maxPriceAge + ". Execute: " + prices)
+
+      // TODO add logic here to avoid duplicate trades
       
     }
     

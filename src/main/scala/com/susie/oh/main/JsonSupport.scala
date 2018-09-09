@@ -2,8 +2,6 @@ package com.susie.oh.main
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import spray.json.DefaultJsonProtocol
-import spray.json.JsValue
-import spray.json.RootJsonFormat
 
 trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   

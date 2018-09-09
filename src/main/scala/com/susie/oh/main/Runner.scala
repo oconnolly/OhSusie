@@ -14,14 +14,6 @@ object Runner {
       }(sys.dispatcher)
     }
     
-    /*sys.scheduler.schedule(Duration.Zero, Duration(2, TimeUnit.SECONDS)) {
-      priceActorRouter ! OrderBookRequest("BTC", "ETH", poloniexProfile)
-      priceActorRouter ! OrderBookRequest("USDT", "BTC", poloniexProfile)
-      priceActorRouter ! OrderBookRequest("USDT", "ETH", poloniexProfile)
-      priceActorRouter ! OrderBookRequest("BTC", "LTC", poloniexProfile)
-      priceActorRouter ! OrderBookRequest("USDT", "LTC", poloniexProfile)
-    }(sys.dispatcher)*/
-    
     while(true) {
       
       Thread.sleep(1000L)

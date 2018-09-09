@@ -1,14 +1,8 @@
 package com.susie.oh.actor
 
-import com.susie.oh.outbound.OrderBookDataWriter
-import com.susie.oh.outbound.StatisticsDataWriter
-import com.susie.oh.outbound.TradeDataWriter
-import com.susie.oh.outbound.message.OutboundDataMessage
-import com.susie.oh.outbound.message.OutboundExchangeLatencyMessage
-import com.susie.oh.outbound.message.OutboundTradeMessage
-
-import akka.actor.Actor
-import akka.actor.ActorLogging
+import akka.actor.{Actor, ActorLogging}
+import com.susie.oh.outbound.message.{OutboundDataMessage, OutboundExchangeLatencyMessage, OutboundTradeMessage}
+import com.susie.oh.outbound.{OrderBookDataWriter, StatisticsDataWriter, TradeDataWriter}
 
 class OutboundActor extends Actor with ActorLogging {
   

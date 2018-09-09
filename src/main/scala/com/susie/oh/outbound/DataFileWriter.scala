@@ -46,6 +46,7 @@ abstract class DataFileWriter(val fileType: String) {
       val filename = close()
       System.err.println(s"=== Closed file with name: $filename ===") // TODO replace
       bufferedWriter = getNewBufferedWriter()
+      lineCounter = 0
     }
   }
   

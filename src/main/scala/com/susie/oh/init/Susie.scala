@@ -11,7 +11,7 @@ object Susie {
   
   val config = ConfigFactory.load()
   
-  val susieSettings: SusieSettings = new SimpleSusieSettings("data/tradelist.csv", null, ExchangeProfile.load())
+  val susieSettings: SusieSettings = new SimpleSusieSettings("data/tradelist.csv", ExchangeProfile.load())
   
   implicit val sys = ActorSystem("ActorSystem", config)
   implicit val mat = ActorMaterializer()

@@ -1,14 +1,12 @@
 package com.susie.oh.model
 
-import scala.concurrent.duration.FiniteDuration
-import com.susie.oh.model.convert._
-
-import scala.concurrent.duration.Duration
 import java.util.concurrent.TimeUnit
 
+import com.susie.oh.model.convert._
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import java.util.Base64
+
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 
 case class ExchangeProfile(val id: String, val address: String,
