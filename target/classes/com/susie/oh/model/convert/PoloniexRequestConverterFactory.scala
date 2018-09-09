@@ -15,7 +15,7 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 
-class PoloniexRequestConverterFactory2(override val exchangeProfile: ExchangeProfile) extends RequestConverterFactory(exchangeProfile) {
+class PoloniexRequestConverterFactory(override val exchangeProfile: ExchangeProfile) extends RequestConverterFactory(exchangeProfile) {
   
   override def getRequest(orderBookRequest: OrderBookRequest): HttpRequest = {
     
@@ -41,11 +41,9 @@ class PoloniexRequestConverterFactory2(override val exchangeProfile: ExchangePro
         val highestBid = resRaw.bids(0).price
         val highestBidVolume = resRaw.bids(0).amount
         
-        val firstPrice = Price(orderBookRequest.leg, orderBookRequest.requestFactory.exchangeProfile.id,
-          highestBid.toDouble * (1 + orderBookRequest.requestFactory.exchangeProfile.limitFee), highestBidVolume)
+        val firstPrice = Price(orderBookRequest.leg, orderBookRequest.requestFactory.exchangeProfile.id, lowestAsk.toDouble * (1 + orderBookRequest.requestFactory.exchangeProfile.marketFee), lowestAskVolume)
         
-        val secondPrice = Price(orderBookRequest.leg.swap(), orderBookRequest.requestFactory.exchangeProfile.id,
-          (1 / lowestAsk.toDouble) * (1 + orderBookRequest.requestFactory.exchangeProfile.limitFee), lowestAskVolume, true)
+        val secondPrice = Price(orderBookRequest.leg.swap(), orderBookRequest.requestFactory.exchangeProfile.id, (1 / highestBid.toDouble) * (1 + orderBookRequest.requestFactory.exchangeProfile.marketFee), highestBidVolume, true)
         
         System.err.println("GOT POLONIEX PRICE: " + firstPrice + " " + secondPrice)
         
